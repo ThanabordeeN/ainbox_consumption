@@ -4,10 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pymongo
+
 def wide_space_default():
     st.set_page_config(layout="wide")
 
 wide_space_default()
+
 # MongoDB connection
 @st.cache_resource
 def init_connection():
@@ -61,78 +63,86 @@ if st.button("Fetch Data"):
     # Update DataFrame with page names
     df["page_name"] = df["page_id"].map(page_names)
 
-    # Summary Statistics
-    st.subheader("Summary Statistics")
-    col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Total Cost", f"${df['cost'].sum():.6f}")
-    col2.metric("Total Prompts", df["total_prompt"].sum())
-    col3.metric("Unique Models", df["model"].nunique())
-    col4.metric("Unique Page Name", df["page_name"].nunique())
+    # Create tabs
+    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Summary", "Model Performance", "Page Usage", "Model Distribution", "Usage Over Time"])
 
-    # Metrics selection
-    metrics = ["prompt_input", "prompt_output", "total_prompt", "cost"]
-    selected_metric = st.selectbox("Select Metric", metrics)
+    with tab1:
+        # Summary Statistics
+        st.subheader("Summary Statistics")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Cost", f"${df['cost'].sum():.6f}")
+        col2.metric("Total Prompts", df["total_prompt"].sum())
+        col3.metric("Unique Models", df["model"].nunique())
+        col4.metric("Unique Page Name", df["page_name"].nunique())
 
-    # Model Performance Chart
-    st.subheader("Model Performance Metrics")
-    fig = px.bar(df, x="model", y=selected_metric, color="model",
-                 labels={selected_metric: selected_metric.replace("_", " ").title()},
-                 title=f"{selected_metric.replace('_', ' ').title()} by Model")
-    st.plotly_chart(fig)
+    with tab2:
+        # Metrics selection
+        metrics = ["prompt_input", "prompt_output", "total_prompt", "cost"]
+        selected_metric = st.selectbox("Select Metric", metrics)
 
-    # Page ID Usage Token
-    st.subheader("Page ID Usage Token")
-    page_id_usage = df.groupby("page_name").agg({
-        "prompt_input": "sum",
-        "prompt_output": "sum",
-        "total_prompt": "sum",
-        "cost": "sum"
-    }).reset_index()
+        # Model Performance Chart
+        st.subheader("Model Performance Metrics")
+        fig = px.bar(df, x="model", y=selected_metric, color="model",
+                     labels={selected_metric: selected_metric.replace("_", " ").title()},
+                     title=f"{selected_metric.replace('_', ' ').title()} by Model")
+        st.plotly_chart(fig)
 
-    fig_page_id = px.bar(page_id_usage, x="page_name", y="total_prompt",
-                         color="page_name",  # Add color="page_name" here
-                         labels={"total_prompt": "Total Tokens", "page_name": "Page Name"},
-                         title="Total Token Usage by Page Name")
-    st.plotly_chart(fig_page_id)
+    with tab3:
+        # Page ID Usage Token
+        st.subheader("Page ID Usage Token")
+        page_id_usage = df.groupby("page_name").agg({
+            "prompt_input": "sum",
+            "prompt_output": "sum",
+            "total_prompt": "sum",
+            "cost": "sum"
+        }).reset_index()
 
-    # Model Distribution Pie Chart
-    st.subheader("Model Usage Distribution")
-    model_distribution = df["model"].value_counts().reset_index()
-    model_distribution.columns = ["model", "count"]
-    fig_pie = px.pie(model_distribution, values="count", names="model", title="Model Usage Distribution")
-    st.plotly_chart(fig_pie)
+        fig_page_id = px.bar(page_id_usage, x="page_name", y="total_prompt",
+                             color="page_name",  # Add color="page_name" here
+                             labels={"total_prompt": "Total Tokens", "page_name": "Page Name"},
+                             title="Total Token Usage by Page Name")
+        st.plotly_chart(fig_page_id)
 
-    # Usage Over Time (All Pages)
-    st.subheader("Usage Over Time (All Pages)")
-    df["time"] = pd.to_datetime(df["time"])
-    df["minute"] = df["time"].dt.floor('Min')
-    time_series = df.groupby(["minute", "page_name"]).agg({"total_prompt": "sum", "cost": "sum"}).reset_index()
+    with tab4:
+        # Model Distribution Pie Chart
+        st.subheader("Model Usage Distribution")
+        model_distribution = df["model"].value_counts().reset_index()
+        model_distribution.columns = ["model", "count"]
+        fig_pie = px.pie(model_distribution, values="count", names="model", title="Model Usage Distribution")
+        st.plotly_chart(fig_pie)
 
-    fig_time = px.scatter(time_series, x="minute", y="total_prompt", color="page_name",
-                       labels={"value": "Total Prompts", "variable": "Metric", "page_name": "Page Name"},
-                       title="Total Prompt Usage Over Time (All Pages)")
-    st.plotly_chart(fig_time)
+    with tab5:
+        # Usage Over Time (All Pages)
+        st.subheader("Usage Over Time (All Pages)")
+        df["time"] = pd.to_datetime(df["time"])
+        df["minute"] = df["time"].dt.floor('Min')
+        time_series = df.groupby(["minute", "page_name"]).agg({"total_prompt": "sum", "cost": "sum"}).reset_index()
 
-    fig_cost = px.scatter(time_series, x="minute", y="cost", color="page_name",
-                       labels={"value": "Cost", "variable": "Metric", "page_name": "Page Name"},
-                       title="Cost Over Time (All Pages)")
-    st.plotly_chart(fig_cost)
+        fig_time = px.scatter(time_series, x="minute", y="total_prompt", color="page_name",
+                           labels={"value": "Total Prompts", "variable": "Metric", "page_name": "Page Name"},
+                           title="Total Prompt Usage Over Time (All Pages)")
+        st.plotly_chart(fig_time)
 
-    # Usage Over Time (All Models)
-    st.subheader("Usage Over Time (All Models)")
-    df["time"] = pd.to_datetime(df["time"])
-    df["minute"] = df["time"].dt.floor('Min')
-    time_series = df.groupby(["minute", "page_name", "model"]).agg({"total_prompt": "sum", "cost": "sum"}).reset_index()
+        fig_cost = px.scatter(time_series, x="minute", y="cost", color="page_name",
+                           labels={"value": "Cost", "variable": "Metric", "page_name": "Page Name"},
+                           title="Cost Over Time (All Pages)")
+        st.plotly_chart(fig_cost)
 
-    fig_mtime = px.scatter(time_series, x="minute", y="total_prompt", color="model",
-                       labels={"value": "Total Prompts", "variable": "Metric", "page_name": "Page Name", "model": "Model"},
-                       title="Total Prompt Usage Over Time (All Model)")
-    st.plotly_chart(fig_mtime)
+        # Usage Over Time (All Models)
+        st.subheader("Usage Over Time (All Models)")
+        df["time"] = pd.to_datetime(df["time"])
+        df["minute"] = df["time"].dt.floor('Min')
+        time_series = df.groupby(["minute", "page_name", "model"]).agg({"total_prompt": "sum", "cost": "sum"}).reset_index()
 
-    fig_mcost = px.scatter(time_series, x="minute", y="cost", color="model",
-                       labels={"value": "Cost", "variable": "Metric", "page_name": "Page Name", "model": "Model"},
-                       title="Cost Over Time (All Model)")
-    st.plotly_chart(fig_mcost)
+        fig_mtime = px.scatter(time_series, x="minute", y="total_prompt", color="model",
+                           labels={"value": "Total Prompts", "variable": "Metric", "page_name": "Page Name", "model": "Model"},
+                           title="Total Prompt Usage Over Time (All Model)")
+        st.plotly_chart(fig_mtime)
+
+        fig_mcost = px.scatter(time_series, x="minute", y="cost", color="model",
+                           labels={"value": "Cost", "variable": "Metric", "page_name": "Page Name", "model": "Model"},
+                           title="Cost Over Time (All Model)")
+        st.plotly_chart(fig_mcost)
 
     # Usage Details Table
     st.subheader("Usage Details")
