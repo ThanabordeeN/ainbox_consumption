@@ -4,7 +4,10 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import pymongo
+def wide_space_default():
+    st.set_page_config(layout="wide")
 
+wide_space_default()
 # MongoDB connection
 @st.cache_resource
 def init_connection():
