@@ -14,6 +14,8 @@ wide_space_default()
 @st.cache_resource
 def init_connection():
     return pymongo.MongoClient(st.secrets['MONGO_DB_URL'])
+
+
 client = init_connection()
 db = client["AI_Chat"]
 collection = db["consumption_log"]
@@ -41,7 +43,7 @@ st.title("ainbox LLMOps Dashboard")
 # Date range selection
 col1, col2 = st.columns(2)
 with col1:
-    start_date = st.date_input("Start Date", datetime.now() - timedelta(days=7))
+    start_date = st.date_input("Start Date", datetime.now() - timedelta(days=30))
 with col2:
     end_date = st.date_input("End Date", datetime.now())
 
@@ -64,7 +66,7 @@ if st.button("Fetch Data"):
     df["page_name"] = df["page_id"].map(page_names)
 
     # Create tabs
-    tab1, tab2, tab3, tab4, tab5 = st.tabs(["Summary", "Model Performance", "Page Usage", "Model Distribution", "Usage Over Time"])
+    tab1, tab2, tab3, tab4, tab5 ,tab6 = st.tabs(["Summary", "Model Performance", "Page Usage", "Model Distribution", "Usage Over Time","Raw Data"])
 
     with tab1:
         # Summary Statistics
@@ -77,36 +79,31 @@ if st.button("Fetch Data"):
 
     with tab2:
         # Metrics selection
-        metrics = ["prompt_input", "prompt_output", "total_prompt", "cost", "prompt_token_per_price"]  # Add new metric
-        selected_metric = st.selectbox("Select Metric", metrics)
 
         # Calculate prompt token per price
         df['prompt_token_per_price'] = df['total_prompt'] / df['cost']
 
         # Model Performance Chart
         st.subheader("Model Performance Metrics")
-        
-        fig = px.bar(df, x="model", y=selected_metric, color="model",
-                        labels={selected_metric: "Prompt Tokens per Price"},
+        fig = px.bar(df, x="model", y="total_prompt", color="model",
+                        labels={"total_prompt": "Prompt Tokens per Price"},
                         title=f"Prompt Tokens per Price by Model")
-        
+        st.plotly_chart(fig)
         # Create a scatter plot for prompt types
-        prompt_scatter = px.scatter(df, x="cost", y="prompt_input", color="model",
-                                    labels={"cost": "Cost", "prompt_input": "Input Prompt Tokens"},
+        
+        prompt_scatter = px.scatter(df, x=["prompt_input", "prompt_output"], y="cost", color="model",
+                                    labels={"prompt_input": "Input Prompt Tokens", "prompt_output": "Output Prompt Tokens","cost": "Cost"},
                                     title=f"Input Prompt Tokens vs. Cost by Model")
-        prompt_scatter.add_trace(go.Scatter(x=df["cost"], y=df["prompt_output"], mode='lines+markers', name='Output Prompt Tokens', marker=dict(color='red')))
-        prompt_scatter.add_trace(go.Scatter(x=df["cost"], y=df["total_prompt"], mode='lines+markers', name='Total Prompt Tokens', marker=dict(color='green')))
+        prompt_scatter.add_trace(go.Scatter(x=df["prompt_output"], y=df["cost"], mode='markers', name='Output Prompt Tokens', marker=dict(color='red')))
+        prompt_scatter.add_trace(go.Scatter(x=df["prompt_input"], y=df["cost"], mode='markers', name='Total Prompt Tokens', marker=dict(color='green')))
 
         # Create a line chart for prompt types
-        prompt_line = px.line(df, x="cost", y="prompt_input", color="model",
-                                labels={"cost": "Cost", "prompt_input": "Input Prompt Tokens"},
-                                title=f"Input Prompt Tokens vs. Cost by Model")
-        prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["prompt_output"], mode='lines', name='Output Prompt Tokens', marker=dict(color='red')))
-        prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["total_prompt"], mode='lines', name='Total Prompt Tokens', marker=dict(color='green')))
 
-        st.plotly_chart(fig)
+        #prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["prompt_output"], mode='lines', name='Output Prompt Tokens', marker=dict(color='red')))
+        #prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["total_prompt"], mode='lines', name='Total Prompt Tokens', marker=dict(color='green')))
+
+        
         st.plotly_chart(prompt_scatter)
-        st.plotly_chart(prompt_line)
 
     with tab3:
         # Page ID Usage Token
@@ -137,13 +134,22 @@ if st.button("Fetch Data"):
         st.subheader("Usage Over Time (All Pages)")
         df["time"] = pd.to_datetime(df["time"])
         df["minute"] = df["time"].dt.floor('Min')
-        time_series = df.groupby(["minute", "page_name"]).agg({"total_prompt": "sum", "cost": "sum"}).reset_index()
+        time_series = df.groupby(["minute", "page_name"]).agg({"total_prompt": "sum", "cost": "sum" ,"prompt_input": "sum", "prompt_output": "sum" }).reset_index()
 
-        fig_time = px.scatter(time_series, x="minute", y="total_prompt", color="page_name",
+        fig_time_total = px.scatter(time_series, x="minute", y="total_prompt", color="page_name",
                            labels={"value": "Total Prompts", "variable": "Metric", "page_name": "Page Name"},
                            title="Total Prompt Usage Over Time (All Pages)")
-        st.plotly_chart(fig_time)
-
+        st.plotly_chart(fig_time_total)
+        
+        fig_time_input = px.scatter(time_series, x="minute", y="prompt_input", color="page_name",
+                           labels={"value": "Input Prompts", "variable": "Metric", "page_name": "Page Name"},
+                           title="Input Prompt Usage Over Time (All Pages)")
+        st.plotly_chart(fig_time_input)
+        fig_time_output = px.scatter(time_series, x="minute", y="prompt_output", color="page_name",
+                           labels={"value": "Output Prompts", "variable": "Metric", "page_name": "Page Name"},
+                           title="Output Prompt Usage Over Time (All Pages)")
+        st.plotly_chart(fig_time_output)
+        
         fig_cost = px.scatter(time_series, x="minute", y="cost", color="page_name",
                            labels={"value": "Cost", "variable": "Metric", "page_name": "Page Name"},
                            title="Cost Over Time (All Pages)")
@@ -165,6 +171,7 @@ if st.button("Fetch Data"):
                            title="Cost Over Time (All Model)")
         st.plotly_chart(fig_mcost)
 
-    # Usage Details Table
-    st.subheader("Usage Details")
-    st.dataframe(df[["time", "page_name", "prompt_input", "prompt_output", "total_prompt", "cost","model"]])
+    with tab6:
+        # Usage Details Table
+        st.subheader("Usage Details")
+        st.dataframe(df[["time", "page_name", "prompt_input", "prompt_output", "total_prompt", "cost","model"]])
