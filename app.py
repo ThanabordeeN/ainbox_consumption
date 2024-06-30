@@ -85,15 +85,16 @@ if st.button("Fetch Data"):
 
         # Model Performance Chart
         st.subheader("Model Performance Metrics")
-        if selected_metric == "prompt_token_per_price":
-            fig = px.bar(df, x="model", y=selected_metric, color="model",
-                         labels={selected_metric: "Prompt Tokens per Price"},
-                         title=f"Prompt Tokens per Price by Model")
-        else:
-            fig = px.bar(df, x="model", y=selected_metric, color="model",
-                         labels={selected_metric: selected_metric.replace("_", " ").title()},
-                         title=f"{selected_metric.replace('_', ' ').title()} by Model")
+        
+        fig = px.bar(df, x="model", y=selected_metric, color="model",
+                        labels={selected_metric: "Prompt Tokens per Price"},
+                        title=f"Prompt Tokens per Price by Model")
+        
+        figg = px.bar(df, x="model", y=selected_metric, color="model",
+                        labels={selected_metric: selected_metric.replace("_", " ").title()},
+                        title=f"{selected_metric.replace('_', ' ').title()} by Model")
         st.plotly_chart(fig)
+        st.plotly_chart(figg)
 
     with tab3:
         # Page ID Usage Token
