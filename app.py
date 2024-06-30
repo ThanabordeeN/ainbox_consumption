@@ -90,11 +90,23 @@ if st.button("Fetch Data"):
                         labels={selected_metric: "Prompt Tokens per Price"},
                         title=f"Prompt Tokens per Price by Model")
         
-        figg = px.scatter(df, x="model", y=selected_metric, color="model",
-                        labels={selected_metric: selected_metric.replace("_", " ").title()},
-                        title=f"{selected_metric.replace('_', ' ').title()} by Model")
+        # Create a scatter plot for prompt types
+        prompt_scatter = px.scatter(df, x="cost", y="prompt_input", color="model",
+                                    labels={"cost": "Cost", "prompt_input": "Input Prompt Tokens"},
+                                    title=f"Input Prompt Tokens vs. Cost by Model")
+        prompt_scatter.add_trace(go.Scatter(x=df["cost"], y=df["prompt_output"], mode='lines+markers', name='Output Prompt Tokens', marker=dict(color='red')))
+        prompt_scatter.add_trace(go.Scatter(x=df["cost"], y=df["total_prompt"], mode='lines+markers', name='Total Prompt Tokens', marker=dict(color='green')))
+
+        # Create a line chart for prompt types
+        prompt_line = px.line(df, x="cost", y="prompt_input", color="model",
+                                labels={"cost": "Cost", "prompt_input": "Input Prompt Tokens"},
+                                title=f"Input Prompt Tokens vs. Cost by Model")
+        prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["prompt_output"], mode='lines', name='Output Prompt Tokens', marker=dict(color='red')))
+        prompt_line.add_trace(go.Scatter(x=df["cost"], y=df["total_prompt"], mode='lines', name='Total Prompt Tokens', marker=dict(color='green')))
+
         st.plotly_chart(fig)
-        st.plotly_chart(figg)
+        st.plotly_chart(prompt_scatter)
+        st.plotly_chart(prompt_line)
 
     with tab3:
         # Page ID Usage Token
