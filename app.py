@@ -90,7 +90,7 @@ if st.button("Fetch Data"):
                         labels={selected_metric: "Prompt Tokens per Price"},
                         title=f"Prompt Tokens per Price by Model")
         
-        figg = px.scatter_geo(df, x="model", y=selected_metric, color="model",
+        figg = px.scatter_3d(df, x="model", y=selected_metric, color="model",
                         labels={selected_metric: selected_metric.replace("_", " ").title()},
                         title=f"{selected_metric.replace('_', ' ').title()} by Model")
         st.plotly_chart(fig)
