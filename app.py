@@ -77,14 +77,22 @@ if st.button("Fetch Data"):
 
     with tab2:
         # Metrics selection
-        metrics = ["prompt_input", "prompt_output", "total_prompt", "cost"]
+        metrics = ["prompt_input", "prompt_output", "total_prompt", "cost", "prompt_token_per_price"]  # Add new metric
         selected_metric = st.selectbox("Select Metric", metrics)
+
+        # Calculate prompt token per price
+        df['prompt_token_per_price'] = df['total_prompt'] / df['cost']
 
         # Model Performance Chart
         st.subheader("Model Performance Metrics")
-        fig = px.bar(df, x="model", y=selected_metric, color="model",
-                     labels={selected_metric: selected_metric.replace("_", " ").title()},
-                     title=f"{selected_metric.replace('_', ' ').title()} by Model")
+        if selected_metric == "prompt_token_per_price":
+            fig = px.bar(df, x="model", y=selected_metric, color="model",
+                         labels={selected_metric: "Prompt Tokens per Price"},
+                         title=f"Prompt Tokens per Price by Model")
+        else:
+            fig = px.bar(df, x="model", y=selected_metric, color="model",
+                         labels={selected_metric: selected_metric.replace("_", " ").title()},
+                         title=f"{selected_metric.replace('_', ' ').title()} by Model")
         st.plotly_chart(fig)
 
     with tab3:
